@@ -291,14 +291,42 @@ post /index/_search
 	    "aggs": {
 		    "ageBucket": {
 			    "terms": {
-				    "field": "age.keyword"
+				    "field": "age.keyword",
+                    "size":1000
 			    }
 		    }
 	    }
     }
     ```
-### 求和
-### 平均
+    terms分桶会会返回这个桶内的文档数量,terms中的size表示要对多少个匹配查询条件进行分桶，如果要计算总数量，size需要设置的比总数大（不推荐使用此方式来求总数）
+### 求和(sum)
+```txt
+post /index/_search
+{
+    "size":0,
+    "aggs":{
+        "sumAgg":{
+            "sum":{
+                "field":"score"
+            }
+        }
+    }
+}
+```
+### 平均(avg)
+```txt
+post /index/_search
+{
+    "size":0,
+    "aggs":{
+        "avgAgg":{
+            "avg":{
+                "field":"score"
+            }
+        }
+    }
+}
+```
 ### 最大、最小
 ### 状态统计
 
