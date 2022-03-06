@@ -477,7 +477,7 @@ ES的查询过程分为两阶段：
 
 ## 分布式的聚合过程
 
-# ES的高阶使用
+# ES的深入使用
 ## es脚本（script）
 es的script可以让我们像写程序代码一样来查询、修改es中的数据
 - 脚本使用的语言是es自己开发的painless，类似于java，支持lambda表达式  
@@ -691,7 +691,7 @@ post /index/_search
 ```
 minimum_should_match：查询精度，匹配的词项数会向下取整，当精度是75%、要匹配的词项是3个时，只要文档的有同时出现两个词即可匹配
 ## 扩展
-es中的查询方式非常多，这边还是不做详细说明，具体到es官方文档查看  
+es中的查询方式非常多，比如跨字段匹配、上下文匹配、自动不全搜索等等，这边还是不做详细说明，具体到es官方文档查看  
 https://www.elastic.co/guide/en/elasticsearch/reference/7.17/query-dsl.html
 # 相关性
 相关性是ES检索中的重要因素，相关性高的文档会优先展示，那么ES是如何评估一次检索中的文档相关性？ES自5.0后默认使用的打分算法是`Okapi BM25`,
@@ -883,3 +883,147 @@ Elasticsearch 维护了一个父文档和子文档的映射关系，所以父-�
 
 
 # ES集群监控管理
+es中提供了一些用于查询ES集群、索引运行情况的API
+## 查看集群健康(cluster health)
+```txt
+get _cluster/health
+
+返回信息：
+{
+   "cluster_name": "elasticsearch_zach",
+   "status": "green",
+   "timed_out": false,
+   "number_of_nodes": 1,
+   "number_of_data_nodes": 1,
+   "active_primary_shards": 10,
+   "active_shards": 10,
+   "relocating_shards": 0,
+   "initializing_shards": 0,
+   "unassigned_shards": 0
+}
+```
+- status：  
+  返回信息中最重要的字段就是`status`,这代表集群当前的运行状况
+    - green：  
+    所有的主分片和副本分片都已分配。你的集群是 100% 可用的。
+    - yellow：  
+    所有的主分片已经分片了，但至少还有一个副本是缺失的。不会有数据丢失，所以搜索结果依然是完整的。不过，你的高可用性在某种程度上被弱化。如果 更多的 分片消失，你就会丢数据了。把 yellow 想象成一个需要及时调查的警告。（如果在建立索引时，如果索引只有主分片，副本分配的数量是0，那么集群一定会处于yellow状态）
+    - red：  
+    至少一个主分片（以及它的全部副本）都在缺失中。这意味着你在缺少数据：搜索只能返回部分数据，而分配到这个分片上的写入请求会返回一个异常。  
+## 索引、分片级别的健康状态
+- 索引级
+    ```txt
+    GET _cluster/health?level=indices
+    ```
+    通过在API后面指定level是索引级，那么返回结果会详细的显示每个索引是green还是yellow、red
+- 分片级  
+  ```txt
+  GET _cluster/health?level=shards
+  ```
+## 节点的状态(node stats)
+通常一个集群出问题了，还需要定位到具体是哪个节点出现问题，这时候可以使用查看节点统计值API
+```txt
+GET _nodes/stats
+```
+这个API会返回集群中每个节点的基本信息
+```txt
+{
+   "cluster_name": "elasticsearch_zach",
+   "nodes": {
+      "UNr6ZMf5Qk-YCPA_L18BOQ": {
+         "timestamp": 1408474151742,
+         "name": "Zach",
+         "transport_address": "inet[zacharys-air/192.168.1.131:9300]",
+         "host": "zacharys-air",
+         "ip": [
+            "inet[zacharys-air/192.168.1.131:9300]",
+            "NONE"
+         ],
+...
+```
+### 索引状态
+上面的节点状态API还会返回节点中每个索引的统计状态
+```txt
+"indexing": {
+           "index_total": 803441,
+           "index_time_in_millis": 367654,
+           "index_current": 99,
+           "delete_total": 0,
+           "delete_time_in_millis": 0,
+           "delete_current": 0
+        },
+        "get": {
+           "total": 6,
+           "time_in_millis": 2,
+           "exists_total": 5,
+           "exists_time_in_millis": 2,
+           "missing_total": 1,
+           "missing_time_in_millis": 0,
+           "current": 0
+        },
+        "search": {
+           "open_contexts": 0,
+           "query_total": 123,
+           "query_time_in_millis": 531,
+           "query_current": 0,
+           "fetch_total": 3,
+           "fetch_time_in_millis": 55,
+           "fetch_current": 0
+        },
+        "merges": {
+           "current": 0,
+           "current_docs": 0,
+           "current_size_in_bytes": 0,
+           "total": 1128,
+           "total_time_in_millis": 21338523,
+           "total_docs": 7241313,
+           "total_size_in_bytes": 5724869463
+        },
+```
+这部分信息对于了解索引的工作情况非常有帮助。  
+
+- indexing：  
+  显示已经索引了多少文档。这个值是一个累加计数器。在文档被删除的时候，数值不会下降。还要注意的是，在发生内部 索引 操作的时候，这个值也会增加，比如说文档更新。还列出了索引操作耗费的时间，正在索引的文档数量，以及删除操作的类似统计值。
+
+- get：  
+  显示通过 ID 获取文档的接口相关的统计值。包括对单个文档的 GET 和 HEAD 请求。
+- search：  
+  描述正在查询中的搜索（ open_contexts ）数量、查询的总数量、以及自节点启动以来在查询上消耗的总时间。用 query_time_in_millis / query_total 计算的比值，可以用来粗略的评价查询有多高效。比值越大，每个查询花费的时间越多。
+
+- fetch：  
+  统计值展示了查询处理的后一半流程（query-then-fetch 里的 fetch ）。如果 fetch 耗时比 query 还多，说明磁盘较慢，或者获取了太多文档，或者可能搜索请求设置了太大的分页（比如， size: 10000 ）。
+
+- merges：  
+  包括了 Lucene 段合并相关的信息。它会告诉你目前在运行几个合并，合并涉及的文档数量，正在合并的段的总大小，以及在合并操作上消耗的总时间。
+
+```txt
+       "filter_cache": {
+           "memory_size_in_bytes": 48,
+           "evictions": 0
+        },
+        "fielddata": {
+           "memory_size_in_bytes": 0,
+           "evictions": 0
+        },
+        "segments": {
+           "count": 319,
+           "memory_in_bytes": 65812120
+        },
+```
+- filter_cache：  
+  展示了已缓存的过滤器位集合所用的内存数量，以及过滤器(fliter)被驱逐出内存的次数。驱逐次数过多，可能表示需要加大过滤器的缓存，或者你的过滤器不太适合缓存（比如它们因为高基数而在大量产生，就像是缓存一个 now 时间表达式）。  
+
+  不过，驱逐数是一个很难评定的指标。过滤器是在每个段的基础上缓存的，而从一个小的段里驱逐过滤器，代价比从一个大的段里要廉价的多。有可能你有很大的驱逐数，但是它们都发生在小段上，也就意味着这些对查询性能只有很小的影响。  
+
+  把驱逐数指标作为一个粗略的参考。如果你看到数字很大，检查一下你的过滤器，确保他们都是正常缓存的。不断驱逐着的过滤器，哪怕都发生在很小的段上，效果也比正确缓存住了的过滤器差很多。
+
+- field_data：  
+ 显示 fielddata 使用的内存，用以聚合、排序等等。这里也有一个驱逐计数。和 filter_cache 不同的是，这里的驱逐计数是很有用的：这个数应该或者至少是接近于 0。因为 fielddata 不是缓存，任何驱逐都消耗巨大，应该避免掉。如果你在这里看到驱逐数，你需要重新评估你的内存情况，fielddata 限制，请求语句。
+- segments：  
+ 会展示这个节点目前正在使用中的 Lucene 段的数量。这是一个重要的数字。大多数索引会有大概 50–150 个段，哪怕它们存有 TB 级别的数十亿条文档。段数量过大表明合并出现了问题（比如，合并速度跟不上段的创建）。注意这个统计值是节点上所有索引的汇聚总数。记住这点。  
+   
+   - memory：  
+     统计值展示了 Lucene 段自己用掉的内存大小。这里包括底层数据结构，比如倒排表，字典，和布隆过滤器等。太大的段数量会增加这些数据结构带来的开销，这个内存使用量就是一个方便用来衡量开销的度量值。
+# 总结
+这篇笔记总结了ElasticSearch的大部分使用知识点：ES的架构、搜索、聚合、ES、搜索、更新的执行过程、数据建模、监控等，更详细的内容还需要从官方文档获取。  
+后续可能还会再出一篇经常与ElasticSearch一同使用的组件：Kibana、logstash等的笔记
