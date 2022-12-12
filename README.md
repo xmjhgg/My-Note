@@ -3,4 +3,13 @@
 ## Repository contents
 here are :
 - ElasticSearch
-- Mongo
+- Mongo (TODO)
+- K8s
+- Data Warehourse
+- Flink
+- MySQL
+- RocketMQ
+- Presto/Trino
+- Zookeeper
+- 设计模式
+- 数据分析
