@@ -60,3 +60,10 @@ public class TimeProcessFunction extends KeyedProcessFunction<String, AccountTra
 
 }
 ```
+
+
+### 待解决疑问
+1. 为什么flink要把定时器和key绑定在一起，为何定时器不能无视key单独运行？  
+如果就是要固定执行某个和key无关的定时器，比如每30分钟固定输出当前系统时间，那么这时候的的做法就只能是在keyBy时，根据一个常量字符串keyBy，固定只有一个key注册定时器。定时器应该不必要和key强耦合在一起，不太理解。  
+也许是因为在流式处理中，定时器大多数时候的执行代码都是和key相关联的，比如收到某个订单的事件，定时刷新这个订单的状态等等。
+
