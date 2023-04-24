@@ -1,7 +1,6 @@
-# The repository for my note
+# 用来记录知识笔记的仓库
 
-## Repository contents
-here are :
+## 仓库内容
 - ElasticSearch
 - Mongo (TODO)
 - K8s
@@ -13,3 +12,5 @@ here are :
 - Zookeeper
 - 设计模式
 - 数据分析
+- 书籍阅读笔记  
+  - 《Unix编程艺术》
